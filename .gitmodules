@@ -1,0 +1,6 @@
+[submodule "btestlab-recordservice"]
+	path = btestlab-recordservice
+	url = https://github.com/a1black/btestlab-recordservice.git
+[submodule "btestlab-webapp"]
+	path = btestlab-webapp
+	url = https://github.com/a1black/btestlab-webapp.git

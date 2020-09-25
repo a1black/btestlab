@@ -1,0 +1,21 @@
+# Log files
+logs/
+*.log
+
+# Temp files
+.cache
+*.tmp
+*.swp
+
+# Enviroment variables file
+.env
+.env.devel
+.env.test
+
+# Idea
+.idea/
+
+# Vim
+.netrwhist
+tags
+TAGS
