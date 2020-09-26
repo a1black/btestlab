@@ -1,0 +1,130 @@
+# Some of the same params can be move to `configs` probably
+# https://docs.docker.com/compose/compose-file/#configs
+version: "3.8"
+
+services: # {{{1
+
+  webserver: # {{{2
+    build: ./btestlab-webserver
+    container_name: btestlab_nginx
+    labels:
+      org.btestlab.author: "a1black"
+      org.btestlab.description: "Reverse proxy for WSGI server"
+      org.btestlab.organization: "Clinical laboratory"
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "200k"
+        max-file: "2"
+    volumes:
+      - type: volume
+        source: btestlab_userdata
+        target: /home/app-data
+        read_only: true
+        volume:
+          nocopy: true
+    networks:
+      - bloodtestlab-org
+    hostname: bloodtestlab.org
+    expose:
+      - "80"
+    ports:
+      - "8080:80/tcp"
+
+  webapp: # {{{2
+    build: ./btestlab-recordservice
+    init: true
+    container_name: btestlab_flaskapp
+    labels:
+      net.btestlab.author: "a1black"
+      net.btestlab.description: "REST API that provides services to record results of laboratory analysis of bodily fluids"
+      net.btestlab.organization: "Clinical laboratory"
+    env_file:
+      - ./btestlab-recordservice/.env
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "200k"
+        max-file: "2"
+    networks:
+      - bloodtestlab-org
+    hostname: api.bloodtestlab.org
+    expose:
+      - "5000"
+  # }}}1
+
+volumes:
+  btestlab_userdata:
+
+networks:
+  bloodtestlab-org:
+
+  #datastore:
+  #  image: postgres:13.0
+  #  container_name: btestlab_postgres
+  #  environment:
+  #    - POSTGRES_USER=admin
+  #    - POSTGRES_PASSWORD=admin
+  #    - POSTGRES_DB=bloodtest_db
+  #  restart: unless-stopped
+  #  volumes:
+  #    - btestlab_pgdata:/var/lib/postgresql/data
+  #  networks:
+  #    - bloodtestlab-org
+  #  hostname: datastore.bloodtestlab.org
+  #  expose:
+  #    - "5432"
+  #  ports:
+  #    - "5432:5432"
+
+  #elasticsearch:
+  #  image: elasticsearch:7.9.1
+  #  container_name: btestlab_elasticsearch
+  #  environment:
+  #    - discovery.type=single-node
+  #    - "ES_JAVA_OPTS=-Xms1024m -Xmx1024m"
+  #  restart: unless-stopped
+  #  ulimits:
+  #    memlock:
+  #      soft: -1
+  #      hard: -1
+  #  volumes:
+  #    - btestlab_esdata:/usr/share/elasticsearch/data
+  #  networks:
+  #    - bloodtestlab-org
+  #  hostname: es.bloodtestlab.org
+  #  expose:
+  #    - "9200"
+
+  #kibana:
+  #  image: kibana:7.9.1
+  #  container_name: kibana
+  #  environment:
+  #    ELASTICSEARCH_HOST: http://es.bloodtestlab.org:9200
+  #  restart: unless-stopped
+  #  volumes:
+  #    - ./btestlab-es/kibana.yml:/usr/share/kibana/config/kibana.yml
+  #  networks:
+  #    - bloodtestlab-org
+  #  hostname: kibana.bloodtestlab.org
+  #  expose:
+  #    - "5601"
+  #  ports:
+  #    - "5601:5601"
+  #  depends_on:
+  #    - elasticsearch
+
+  #cerebro:
+  #  image: lmenezes/cerebro:latest
+  #  container_name: btestlab_cerebro
+  #  networks:
+  #    - bloodtestlab-org
+  #  hostname: cerebro.bloodtestlab.org
+  #  expose:
+  #    - "9000"
+  #  ports:
+  #    - "9000:9000"
+  #  depends_on:
+  #    - elasticsearch
