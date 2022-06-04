@@ -1,0 +1,6 @@
+[submodule "btestlab-rest"]
+	path = btestlab-rest
+	url = git@github.com:a1black/btestlab-rest.git
+[submodule "btestlab-webserver"]
+	path = btestlab-webserver
+	url = git@github.com:a1black/btestlab-webserver.git
