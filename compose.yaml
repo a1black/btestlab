@@ -1,0 +1,66 @@
+name: ${COMPOSE_PROJECT_NAME:?"Please, set project name in .env file."}
+services:
+  backend_mongodb:
+    # Add init script to /docker-entrypoint-initdb.d to 'disableTelemetry()' for 'mongosh' or use depricated 'mongo' cli.
+    container_name: ${COMPOSE_PROJECT_NAME}_backend_mongodb
+    image: mongo:5-focal
+    command: -f /etc/mongod.conf --bind_ip localhost,172.28.0.20 --port 27017 --dbpath /data/db
+
+    cap_drop:
+      - ALL
+    cap_add:
+      - chown
+      # - fowner
+      # - fsetid
+      # - setfcap
+      # - setpcap
+      - setgid
+      - setuid
+    deploy:
+      resources:
+        limits:
+          memory: 1536M
+        reservations:
+          memory: 1024M
+    expose:
+      - 27017
+    networks:
+      backend_network:
+        aliases:
+          - mongodb.lab.local
+        ipv4_address: 172.28.0.20
+    restart: ${RESTART_POLICY:-always}
+    stop_grace_period: 1m
+    user: mongodb
+
+    configs:
+      - source: backend_mongodb_config
+        target: /etc/mongod.conf
+    volumes:
+      - type: volume
+        source: backend_mongodb_main
+        target: /data/db
+
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+networks:
+  backend_network:
+    attachable: true
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.28.0.0/24
+          gateway: 172.28.0.1
+
+configs:
+  backend_mongodb_config:
+    file: ./mongo/mongod.conf
+
+volumes:
+  backend_mongodb_main:
+    external: ${PRODUCTION:-true}
