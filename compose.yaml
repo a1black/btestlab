@@ -4,7 +4,7 @@ services:
     # Add init script to /docker-entrypoint-initdb.d to 'disableTelemetry()' for 'mongosh' or use depricated 'mongo' cli.
     container_name: ${COMPOSE_PROJECT_NAME}_backend_mongodb
     image: mongo:5-focal
-    command: -f /etc/mongod.conf --bind_ip localhost,172.28.0.20 --port 27017 --dbpath /data/db
+    command: -f /etc/mongod.conf --bind_ip localhost,172.28.0.40 --port 27017 --dbpath /data/db
 
     cap_drop:
       - ALL
@@ -28,7 +28,7 @@ services:
       backend_network:
         aliases:
           - mongodb.lab.local
-        ipv4_address: 172.28.0.20
+        ipv4_address: 172.28.0.40
     restart: ${RESTART_POLICY:-always}
     stop_grace_period: 1m
     user: mongodb
@@ -48,6 +48,62 @@ services:
       retries: 3
       start_period: 30s
 
+  backend_rest:
+    container_name: ${COMPOSE_PROJECT_NAME}_rest
+    image: voib2lab/rest:latest
+    build: ./btestlab-rest
+
+    cap_drop:
+      - ALL
+    depends_on:
+      backend_mongodb:
+        condition: service_healthy
+    expose:
+      - 8080
+    init: true
+    networks:
+      backend_network:
+        aliases:
+          - rest.lab.local
+        ipv4_address: 172.28.0.60
+    restart: ${RESTART_POLICY:-always}
+    stop_grace_period: 1m
+
+  webserver:
+    container_name: ${COMPOSE_PROJECT_NAME}_webserver
+    image: voib2lab/webserver:latest
+    build: ./btestlab-webserver
+
+    cap_drop:
+      - ALL
+    cap_add:
+      - chown
+      - dac_override
+      - net_bind_service
+      - setgid
+      - setuid
+    expose:
+      - 80
+      - 443
+    networks:
+      backend_network:
+        aliases:
+          - lab.local
+          - voib2lab.ru
+        ipv4_address: 172.28.0.20
+    restart: ${RESTART_POLICY:-always}
+
+    configs:
+      - source: webserver_config
+        target: /etc/nginx/nginx.conf
+
+    healthcheck:
+      test: curl -qfs --retry 0 -o /dev/null http://localhost/healthcheck
+      start_period: 30s
+      interval: 30s
+      retries: 3
+      timeout: 5s
+
 networks:
   backend_network:
     attachable: true
@@ -60,6 +116,8 @@ networks:
 configs:
   backend_mongodb_config:
     file: ./mongo/mongod.conf
+  webserver_config:
+    file: ./btestlab-webserver/nginx.conf
 
 volumes:
   backend_mongodb_main:
