@@ -10,10 +10,6 @@ services:
       - ALL
     cap_add:
       - chown
-      # - fowner
-      # - fsetid
-      # - setfcap
-      # - setpcap
       - setgid
       - setuid
     deploy:
@@ -44,9 +40,8 @@ services:
     healthcheck:
       test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
       interval: 60s
-      timeout: 10s
+      timeout: 5s
       retries: 3
-      start_period: 30s
 
   backend_rest:
     container_name: ${COMPOSE_PROJECT_NAME}_rest
@@ -97,13 +92,6 @@ services:
       - source: webserver_config
         target: /etc/nginx/nginx.conf
 
-    healthcheck:
-      test: curl -qfs --retry 0 -o /dev/null http://localhost/healthcheck
-      start_period: 30s
-      interval: 30s
-      retries: 3
-      timeout: 5s
-
 networks:
   backend_network:
     attachable: true
@@ -121,4 +109,3 @@ configs:
 
 volumes:
   backend_mongodb_main:
-    external: ${PRODUCTION:-true}
