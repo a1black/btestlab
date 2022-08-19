@@ -5,6 +5,8 @@ services:
     container_name: ${COMPOSE_PROJECT_NAME}_backend_mongodb
     image: mongo:5-focal
     command: -f /etc/mongod.conf --bind_ip localhost,172.28.0.40 --port 27017 --dbpath /data/db
+    environment:
+      MONGO_INITDB_DATABASE: ${MONGODB_DATABASE:?"MongoDB is not set"}
 
     cap_drop:
       - ALL
@@ -15,9 +17,9 @@ services:
     deploy:
       resources:
         limits:
-          memory: 1536M
+          memory: ${MONGODB_RAM_LIMIT:-1536M}
         reservations:
-          memory: 1024M
+          memory: ${MONGODB_RAM_RESERVE:-1024M}
     expose:
       - 27017
     networks:
@@ -39,14 +41,20 @@ services:
 
     healthcheck:
       test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
-      interval: 60s
-      timeout: 5s
+      start_period: 60s
+      interval: 20s
       retries: 3
+      timeout: 3s
 
   backend_rest:
-    container_name: ${COMPOSE_PROJECT_NAME}_rest
+    container_name: ${COMPOSE_PROJECT_NAME}_backend_rest
     image: voib2lab/rest:latest
     build: ./btestlab-rest
+    environment:
+      MONGODB_DB: ${MONGODB_DATABASE:?"MongoDB is not set"}
+      MONGODB_URI: mongodb://mongodb.lab.local:27017
+      SERVER_HOST: 172.28.0.60
+      SERVER_PORT: 8080
 
     cap_drop:
       - ALL
