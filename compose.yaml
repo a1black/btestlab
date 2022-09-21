@@ -1,7 +1,6 @@
 name: ${COMPOSE_PROJECT_NAME:?"Please, set project name in .env file."}
 services:
   backend_mongodb:
-    # Add init script to /docker-entrypoint-initdb.d to 'disableTelemetry()' for 'mongosh' or use depricated 'mongo' cli.
     container_name: ${COMPOSE_PROJECT_NAME}_backend_mongodb
     image: mongo:5-focal
     command: -f /etc/mongod.conf --bind_ip localhost,172.28.0.40 --port 27017 --dbpath /data/db
@@ -34,6 +33,8 @@ services:
     configs:
       - source: backend_mongodb_config
         target: /etc/mongod.conf
+      - source: backend_mongosh_config
+        target: /etc/mongosh.conf
     volumes:
       - type: volume
         source: backend_mongodb_main
@@ -112,6 +113,8 @@ networks:
 configs:
   backend_mongodb_config:
     file: ./mongo/mongod.conf
+  backend_mongosh_config:
+    file: ./mongo/mongosh.conf
   webserver_config:
     file: ./btestlab-webserver/nginx.conf
 
