@@ -1,60 +1,13 @@
 name: ${COMPOSE_PROJECT_NAME:?"Please, set project name in .env file."}
 services:
-  backend_mongodb:
-    container_name: ${COMPOSE_PROJECT_NAME}_backend_mongodb
-    image: mongo:5-focal
-    command: -f /etc/mongod.conf --bind_ip localhost,172.28.0.40 --port 27017 --dbpath /data/db
-    environment:
-      MONGO_INITDB_DATABASE: ${MONGODB_DATABASE:?"MongoDB is not set"}
-
-    cap_drop:
-      - ALL
-    cap_add:
-      - chown
-      - setgid
-      - setuid
-    deploy:
-      resources:
-        limits:
-          memory: ${MONGODB_RAM_LIMIT:-1536M}
-        reservations:
-          memory: ${MONGODB_RAM_RESERVE:-1024M}
-    expose:
-      - 27017
-    networks:
-      backend_network:
-        aliases:
-          - mongodb.lab.local
-        ipv4_address: 172.28.0.40
-    restart: ${RESTART_POLICY:-always}
-    stop_grace_period: 1m
-    user: mongodb
-
-    configs:
-      - source: backend_mongodb_config
-        target: /etc/mongod.conf
-      - source: backend_mongosh_config
-        target: /etc/mongosh.conf
-    volumes:
-      - type: volume
-        source: backend_mongodb_main
-        target: /data/db
-
-    healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
-      start_period: 60s
-      interval: 20s
-      retries: 3
-      timeout: 3s
-
-  backend_rest:
-    container_name: ${COMPOSE_PROJECT_NAME}_backend_rest
-    image: voib2lab/rest:latest
+  backend_api:
+    container_name: ${COMPOSE_PROJECT_NAME}_backend_api
+    image: btestlab/backend_api:latest
     build: ./btestlab-rest
     environment:
       MONGODB_DB: ${MONGODB_DATABASE:?"MongoDB is not set"}
-      MONGODB_URI: mongodb://mongodb.lab.local:27017
-      SERVER_HOST: 172.28.0.60
+      MONGODB_URI: mongodb://mongodb.btestlab.local:27017
+      SERVER_HOST: 172.20.100.60
       SERVER_PORT: 8080
 
     cap_drop:
@@ -68,15 +21,57 @@ services:
     networks:
       backend_network:
         aliases:
-          - rest.lab.local
-        ipv4_address: 172.28.0.60
+          - backend.btestlab.local
+        ipv4_address: 172.20.100.60
     restart: ${RESTART_POLICY:-always}
     stop_grace_period: 1m
 
+  backend_db:
+    container_name: ${COMPOSE_PROJECT_NAME}_backend_db
+    image: btestlab/backend_db:latest
+    build:
+      context: ./mongo
+      args:
+        BTL_BRANCH: ${BTL_BRANCH:-main}
+    command: --bind_ip localhost,172.20.100.40
+    environment:
+      MONGO_INITDB_DATABASE: ${MONGODB_DATABASE:?"MongoDB is not set"}
+
+    cap_drop:
+      - ALL
+    cap_add:
+      - chown
+      - setgid
+      - setuid
+    deploy:
+      resources:
+        limits:
+          memory: ${MONGODB_RAM_LIMIT:-2048M}
+        reservations:
+          memory: ${MONGODB_RAM_RESERVE:-1024M}
+    expose:
+      - 27017
+    networks:
+      backend_network:
+        aliases:
+          - mongodb.btestlab.local
+        ipv4_address: 172.20.100.40
+    restart: ${RESTART_POLICY:-always}
+    stop_grace_period: 1m
+
+    volumes:
+      - type: volume
+        source: backend_mongodb_main
+        target: /data/db
+
   webserver:
     container_name: ${COMPOSE_PROJECT_NAME}_webserver
-    image: voib2lab/webserver:latest
-    build: ./btestlab-webserver
+    image: btestlab/webserver:latest
+    build:
+      context: ./nginx
+      args:
+        BTL_BACKEND: backend.btestlab.local:8080
+        BTL_DOMAIN: ${BTL_DOMAIN:?"Domain name is not defined"}
 
     cap_drop:
       - ALL
@@ -91,15 +86,8 @@ services:
       - 443
     networks:
       backend_network:
-        aliases:
-          - lab.local
-          - voib2lab.ru
-        ipv4_address: 172.28.0.20
+        ipv4_address: 172.20.100.20
     restart: ${RESTART_POLICY:-always}
-
-    configs:
-      - source: webserver_config
-        target: /etc/nginx/nginx.conf
 
 networks:
   backend_network:
@@ -107,16 +95,8 @@ networks:
     ipam:
       driver: default
       config:
-        - subnet: 172.28.0.0/24
-          gateway: 172.28.0.1
-
-configs:
-  backend_mongodb_config:
-    file: ./mongo/mongod.conf
-  backend_mongosh_config:
-    file: ./mongo/mongosh.conf
-  webserver_config:
-    file: ./btestlab-webserver/nginx.conf
+        - subnet: 172.20.100.0/24
+          gateway: 172.20.100.1
 
 volumes:
   backend_mongodb_main:

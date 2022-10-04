@@ -1,0 +1,146 @@
+user www-data www-data;
+worker_processes auto;
+
+error_log /var/log/nginx/error.log notice;
+
+events {
+  worker_connections 1024;
+}
+
+http {
+  include /etc/nginx/mime.types;
+
+  geo $internal_addr {
+    default 0;
+    10.0.0.0/8 1;
+    172.16.0.0/12 1;
+    192.168.0.0/16 1;
+    fe00::/8 1;
+  }
+
+  map $http_access_control_request_headers $cors_add_allow_headers {
+    default "$http_access_control_request_headers";
+    "" "Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,Range,User-Agent,X-Requested-With";
+  }
+
+  # Allow request from private networks (RFC1918), deny the rest.
+  allow 127.0.0.1;
+  allow 10.0.0.0/8;
+  allow 172.16.0.0/12;
+  allow 192.168.0.0/16;
+  allow fe00::/8;
+  deny all;
+
+  access_log off;
+  keepalive_timeout 90s;
+  log_not_found off;
+  server_tokens off;
+
+  # It is better to place a wildcard certificate at the http level so that all servers inherit the single memory copy.
+  ssl_certificate /etc/ssl/certs/BTestLab_ECDSA_CERT.pem;
+  ssl_certificate_key /etc/ssl/private/BTestLab_ECDSA_KEY.pem;
+  ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305;
+  ssl_protocols TLSv1.2 TLSv1.3;
+  ssl_session_cache shared:LabSSL:10m;
+  ssl_session_timeout 1d;
+
+  upstream http_btestlab_backend {
+    server ${BTL_BACKEND};
+  }
+
+  # Health check server.
+  server {
+    listen 127.0.0.1:80;
+    return 200;
+  }
+
+  # Redirect all HTTP requests to HTTPS.
+  server {
+    listen 80;
+    listen [::]:80;
+
+    location / {
+      return 301 https://$host$request_uri;
+    }
+  }
+
+  # Static files.
+  server {
+    listen 443 ssl http2 default_server;
+    listen [::]:443 ssl http2 default_server;
+    server_name ${BTL_DOMAIN};
+
+    default_type application/octet-stream;
+    root /var/www/btestlab_ui;
+    sendfile on;
+    tcp_nodelay on;
+    tcp_nopush on;
+
+    add_header Content-Security-Policy "base-uri 'self'; default-src 'self'; form-action 'self' *.${BTL_DOMAIN}; frame-ancestors 'self'; object-src 'none'";
+    add_header Strict-Transport-Security 'max-age=31536000; includeSubDomains' always;
+
+    location = / {
+      index index.html;
+    }
+
+    location = /index.html {
+      error_page 404 /index.html;
+      internal;
+      expires epoch;
+    }
+
+    location ^~ /static/ {
+      expires epoch;
+    }
+
+    location ~ ^(?:/[-\w]+)+/?$ {
+      rewrite ^ /index.html last;
+    }
+
+    location ~* /(?:browserconfig\.xml|robots\.txt) {
+    }
+
+    location ~* \.html?$ {
+      error_page 404 /index.html;
+      return 404;
+    }
+  }
+
+  # Reverse proxy for REST API.
+  server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    server_name api.${BTL_DOMAIN};
+
+    proxy_cache off;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Internal-Addr $internal_addr;
+
+    location / {
+      add_header Access-Control-Allow-Credentials 'true' always;
+      add_header Access-Control-Allow-Origin $http_origin always;
+      add_header Access-Control-Expose-Headers 'Content-Length,Content-Range' always;
+      add_header Content-Security-Policy "base-uri 'self'; default-src 'none'; form-action 'none'; frame-ancestors 'none'";
+      add_header Strict-Transport-Security 'max-age=31536000;' always;
+
+      if ($request_method = 'OPTIONS') {
+        add_header Access-Control-Allow-Headers $cors_add_allow_headers;
+        add_header Access-Control-Allow-Methods 'DELETE,GET,OPTIONS,PATCH,POST,PUT';
+        add_header Access-Control-Max-Age 864000;
+        add_header Content-Type 'text/plain; charset=utf-8';
+        add_header Content-Length 0;
+        return 204;
+      }
+
+      proxy_pass http://http_btestlab_backend;
+
+      expires epoch;
+      proxy_hide_header X-Powered-By;
+    }
+  }
+}
