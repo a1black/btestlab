@@ -9,8 +9,9 @@ if [ -f "$dotenv" ]; then
   source "$dotenv"
   set +o allexport
 fi
+
 # Verify required env variables
-[ -z "$BTL_DOMAIN" ] && echo "Webserver's domain is not defined" && exit 1
+[ -z "$BTL_DOMAIN" ] && echo " BTL_DOMAIN shell variable is not set" && exit 1
 
 # TLS file paths
 crt="${SCRIPT_PATH}/../nginx/private/BTestLab_ECDSA_CERT.pem"
@@ -48,4 +49,4 @@ openssl ecparam -genkey -name prime256v1 -outform PEM -out $key \
     -out $crt \
   && chmod 644 $crt $key
 
-# vi: et ts=2 sw=2
+# vi: et ft=sh sw=2 ts=2

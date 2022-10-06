@@ -1,0 +1,75 @@
+#!/bin/bash
+
+# Immediately exit on error
+set -e
+
+show_error() {
+  echo "Error: $1" > /dev/stderr
+  exit 1
+}
+
+show_usage() {
+  cat << EOF
+Usage: $(basename $0) -v <version> [-p <path>]
+Script for downloading NodeJS binaries from official distribution page. 
+
+Examples:
+  bash $(basename $0) -v 16 -p ~/.local/share/nodejs 
+
+Options:
+  -h          Print help message
+  -p          Install path (default: ~/.nodejs)
+  -v          Major version number
+EOF
+
+  exit ${1:-0}
+}
+
+# Script parameters
+node_path=$HOME/.nodejs
+node_version
+
+# Script arguments
+while getopts ':h' OPTION; do
+  case $OPTION in
+    h) show_usage;;
+    p) node_version=$OPTARG;;
+    v) node_path=$OPTARG;;
+  esac
+done
+
+# NodeJS endpoints
+node_dist_url="https://nodejs.org/dist/latest-v$node_version.x/"
+
+# Verify NodeJS version number
+if [[ -z $node_version ]]; then
+  show_error 'NodeJS version is not specified'
+elif ! [[ $node_version =~ ^[0-9]+$ ]]; then
+  show_error "Invalid NodeJS major version number: $node_version"
+fi
+
+# Try to retrive latest version of major release
+arch=$(dpkg --print-architecture | sed -e 's/amd/x/')
+kernel=$(uname -s | tr [:upper:] [:lower:])
+node_filename=$(curl -fsL $node_dist_url | grep -oP "node-v$node_version\.\d+\.\d+-$kernel-$arch" | sort -V | tail -n 1)
+
+if [[ -z $node_filename ]]; then
+  show_error "Fail to locate download file: node-v$node_version.x.x-$kernel-$arch"
+fi
+
+# Download binaries
+tmp=$(mktemp -d)
+curl -fsSl "$node_dist_url/$node_filename.tar.gz" | tar -C "$tmp" -xzf -
+
+# Move downloaded files
+mkdir -p $(dirname $node_path)
+if [[ -d $tmp/$node_filename ]]; then
+  mv -f $tmp/$node_filename $node_path
+else
+  mv $tmp $node_path
+fi
+
+# Cleanup
+rm -rf $tmp
+
+# vi: et ft=sh sw=2 ts=2

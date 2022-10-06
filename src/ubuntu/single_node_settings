@@ -1,0 +1,34 @@
+#!/bin/bash
+
+[[ $(id -u) != 0 ]] && echo 'Run script with root privileges.' && exit 1
+
+ask_yn() {
+  local answer
+  read -n 1 -sp "$1 [y/N]: " answer
+  echo ''
+
+  [[ ${answer,,} == 'y' ]]
+}
+
+# Firewall rules to allow access from private networks (RFC 1918)
+# https://en.wikipedia.org/wiki/Private_network
+if ask_yn 'Add ufw rules for the RFC1918 networks?'; then
+  ufw allow proto tcp from 10.0.0.0/8 to any port 80,443 &> /dev/null
+  ufw allow proto tcp from 172.16.0.0/12 to any port 80,443 &> /dev/null
+  ufw allow proto tcp from 192.168.0.0/16 to any port 22,80,443 &> /dev/null
+  echo 'Farewall rules updated'
+fi
+
+# Allow swap only to avoid 'Out of Memory Error'
+# https://www.mongodb.com/docs/manual/administration/production-notes/#std-label-set-swappiness
+if ask_yn 'Limit memory swapping?'; then
+  if grep -q '^vm.swappiness' /etc/sysctl.conf ; then
+    sed -i '/^vm.swappiness/c\vm.swappiness=1' /etc/sysctl.conf
+  else
+    echo 'vm.swappiness=1' >> /etc/sysctl.conf
+  fi
+
+  sysctl -p
+fi
+
+# vi: et ft=sh sw=2 ts=2

@@ -1,0 +1,16 @@
+#!/bin/bash
+
+[[ $(id -u) != 0 ]] && echo 'Run script with root privileges.' && exit 1
+
+# Install updates and basic packages
+apt-get update -qq \
+  && apt-get install -qq -y \
+    curl \
+    htop \
+    tmux \
+    unzip \
+    vim \
+    xsel \
+    zip
+
+# vi: et ft=sh sw=2 ts=2

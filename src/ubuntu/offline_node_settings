@@ -1,0 +1,80 @@
+#!/bin/bash
+
+[[ $(id -u) != 0 ]] && echo 'Run script with root privileges.' && exit 1
+
+ask_yn() {
+  local answer
+  read -n 1 -sp "$1 [y/N]: " answer
+  echo ''
+
+  [[ ${answer,,} == 'y' ]]
+}
+
+# Disable crush reports
+if ask_yn 'Disable apport (crush report feedback)?'; then
+  systemctl disable apport.service -q --now
+  systemctl mask apport.service
+
+  cat << 'EOF'
+Apport service was disabled, to reenable run:
+  systemctl unmask apport.service
+  systemctl enable apport.service --now
+
+EOF
+fi
+
+# Disable bluetooth
+if ask_yn 'Disable bluetooth?'; then
+  systemctl disable bluetooth.service --force -q --now
+  systemctl mask bluetooth.service
+
+  cat << 'EOF'
+Bluetooth service was disabled, to reenable run:
+  systemctl unmask bluetooth.service
+  systemctl enable bluetooth.service --now
+
+EOF
+fi
+
+# Disable auto-upgrades
+if ask_yn 'Disable auto-updates (apt daily and security upgrades)?'; then
+  systemctl disable apt-daily.timer apt-daily.service apt-daily-upgrade.timer apt-daily-upgrade.service -q --now
+  systemctl mask apt-daily.timer apt-daily-upgrade.timer
+
+  cat << 'EOF'
+Daily apt activities were disabled, to reenable run:
+  systemctl unmask apt-daily.timer apt-daily-upgrade.timer
+  systemctl enable apt-daily.timer apt-daily-upgrade.timer --now
+
+EOF
+
+  systemctl disable unattended-upgrades.service -q --now
+  apt-get purge -qq -y unattended-upgrades
+
+  cat << 'EOF'
+Auto security upgrades were disabled, to reenable run:
+  apt-get install unattended-upgrades
+  dpkg-reconfigure unattended-upgrades
+
+EOF
+fi
+
+# Disable cloud init
+if ask_yn 'Disable cloud-init services (WARNING: system will reboot afterwards)?'; then
+  echo 'datasource_list: [ None ]' > /etc/cloud/cloud.cfg.d/90_dpkg.cfg
+  dpkg-reconfigure -f noninteractive cloud-init
+  apt-get purge -qq -y cloud-init
+  rm -rf /etc/cloud /var/lib/cloud/
+
+  cat << 'EOF'
+Cloud init services were disables, to reenable run:
+  apt-get install cloud-init
+  dpkg-reconfigure cloud-init
+
+EOF
+
+  echo 'System will reboot in 1 minute'
+  shutdown --reboot +1
+fi
+
+# vi: et ft=sh sw=2 ts=2

@@ -1,0 +1,61 @@
+#!/bin/bash
+
+show_error() {
+  echo "Error: $1" > /dev/stderr
+  exit 1
+}
+
+show_usage() {
+  cat << EOF
+Usage: $(basename $0)
+Create Docker repository to apt source.list and install Docker CLI and containerd.
+
+Example:
+  sudo bash $(basename $0)
+
+Options:
+  -h          Print help message
+EOF
+
+  exit ${1:-0}
+}
+
+# Script arguments
+while getopts ':h' OPTION; do
+  case $OPTION in
+    h) show_usage;;
+  esac
+done
+
+command -v docker &> /dev/null && show_error 'Docker already installed.'
+[[ $(id -u) != 0 ]] && show_error 'Run script with root privileges.'
+
+# Install updates and basic packages
+apt-get update -qq \
+  && apt-get install -qq -y \
+    apt-transport-https \
+    ca-certificates \
+    curl \
+    gnupg \
+    lsb-release
+
+# Variables
+arch=$(dpkg --print-architecture)
+codename=$(lsb_release -cs)
+keyring_path=/usr/share/keyrings
+
+# Install Docker and Containerd
+mkdir -p $keyring_path \
+  && curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
+    gpg --dearmor -o $keyring_path/docker.gpg \
+  && chmod 644 $keyring_path/docker.gpg \
+  && echo "deb [arch=$arch signed-by=$keyring_path/docker.gpg] \
+    https://download.docker.com/linux/ubuntu $codename stable" > /etc/apt/sources.list.d/docker.list \
+  && apt-get update -qq \
+  && apt-get install -qq -y \
+    docker-ce \
+    docker-ce-cli \
+    containerd.io \
+    docker-compose-plugin
+
+# vi: et ft=sh sw=2 ts=2

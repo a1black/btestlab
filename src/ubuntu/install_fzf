@@ -1,0 +1,76 @@
+#!/bin/bash
+
+# Immediately exit on error
+set -e
+
+show_error() {
+  echo "Error: $1" > /dev/stderr
+  exit 1
+}
+
+show_usage() {
+  cat << EOF
+Usage: $(basename $0) <path>
+Script for downloading fzf binary and shell scripts from offitial git repository.
+
+Examples:
+  bash $(basename $0) ~/.local/share/fzf
+
+Arguments:
+  path     Installation path
+
+Options:
+  -h          Print help message
+EOF
+
+  exit ${1:-0}
+}
+
+# Script arguments
+while getopts ':h' OPTION; do
+  case $OPTION in
+    h) show_usage;;
+  esac
+done
+
+# Script parameters
+fzf_path=${1:-$HOME/.fzf}
+
+# Github endpoints
+github_name="junegunn/fzf"
+github_release_url="https://github.com/$github_name/releases/download"
+github_source_url="https://github.com/$github_name/archive/refs/tags"
+github_tag_url="https://api.github.com/repos/$github_name/tags"
+
+# Try to retrieve latest tag
+fzf_version=$(curl -fsSL $github_tag_url | grep -oP '\d+\.\d+\.\d+' | sort -V | tail -n 1)
+
+if [[ -z $fzf_version ]]; then
+  show_error "Fail to retrieve list of available releases"
+fi
+
+# Download binary
+arch=$(dpkg --print-architecture)
+kernal=$(uname -s | tr [:upper:] [:lower:])
+tmp=$(mktemp -d)
+curl -fsSL "$github_release_url/$fzf_version/fzf-$fzf_version-${kernal}_$arch.tar.gz" | tar -C "$tmp" -xzf -
+
+# Move downloaded file
+if [[ -x $tmp/fzf ]]; then 
+  mkdir -p $fzf_path/bin
+  mv -f $tmp/fzf $fzf_path/bin
+else
+  show_error "Missing executable file: $tmp/fzf"
+fi
+
+# Download source code
+curl -fsSL "$github_source_url/$fzf_version.tar.gz" | tar -C "$tmp" -xzf -
+
+# Mode shell scripts
+mv -f $tmp/fzf-$fzf_version/man $fzf_path
+mv -f $tmp/fzf-$fzf_version/shell $fzf_path
+
+# Cleanup
+rm -rf $tmp
+
+# vi: et ft=sh sw=2 ts=2
