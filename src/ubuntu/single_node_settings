@@ -28,7 +28,7 @@ if ask_yn 'Limit memory swapping?'; then
     echo 'vm.swappiness=1' >> /etc/sysctl.conf
   fi
 
-  sysctl -p
+  sysctl -qp && echo 'Operation was successful'
 fi
 
 # vi: et ft=sh sw=2 ts=2

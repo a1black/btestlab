@@ -49,7 +49,7 @@ Daily apt activities were disabled, to reenable run:
 EOF
 
   systemctl disable unattended-upgrades.service -q --now
-  apt-get purge -qq -y unattended-upgrades
+  apt-get purge -q -y unattended-upgrades
 
   cat << 'EOF'
 Auto security upgrades were disabled, to reenable run:
@@ -63,7 +63,7 @@ fi
 if ask_yn 'Disable cloud-init services (WARNING: system will reboot afterwards)?'; then
   echo 'datasource_list: [ None ]' > /etc/cloud/cloud.cfg.d/90_dpkg.cfg
   dpkg-reconfigure -f noninteractive cloud-init
-  apt-get purge -qq -y cloud-init
+  apt-get purge -q -y cloud-init
   rm -rf /etc/cloud /var/lib/cloud/
 
   cat << 'EOF'

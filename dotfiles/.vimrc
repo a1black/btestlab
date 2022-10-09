@@ -253,4 +253,4 @@ if &t_Co > 2 && has('syntax')
     augroup END
 endif
 
-" vi: et ft=vim sw=4 ts=4 et tw=0
+" vi: et ft=vim sw=4 ts=4 tw=0

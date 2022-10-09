@@ -27,14 +27,14 @@ EOF
 
 # Script parameters
 node_path=$HOME/.nodejs
-node_version
+node_version=
 
 # Script arguments
-while getopts ':h' OPTION; do
+while getopts ':hp:v:' OPTION; do
   case $OPTION in
     h) show_usage;;
-    p) node_version=$OPTARG;;
-    v) node_path=$OPTARG;;
+    p) node_path=$OPTARG;;
+    v) node_version=$OPTARG;;
   esac
 done
 

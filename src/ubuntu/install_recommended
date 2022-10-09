@@ -4,7 +4,7 @@
 
 # Install updates and basic packages
 apt-get update -qq \
-  && apt-get install -qq -y \
+  && apt-get install -q -y \
     curl \
     htop \
     tmux \

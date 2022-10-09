@@ -13,7 +13,7 @@ services:
     cap_drop:
       - ALL
     depends_on:
-      backend_mongodb:
+      backend_db:
         condition: service_healthy
     expose:
       - 8080
@@ -87,6 +87,9 @@ services:
     networks:
       backend_network:
         ipv4_address: 172.20.100.20
+    ports:
+      - "80:80/tcp"
+      - "443:443/tcp"
     restart: ${RESTART_POLICY:-always}
 
 networks:

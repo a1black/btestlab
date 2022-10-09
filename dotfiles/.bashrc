@@ -151,10 +151,8 @@ export GCC_COLORS='error=01;31:warning=01;35:note=01;36:caret=01;32:locus=01:quo
 
 # Prompt customization
 _prompt_git_status_simple() {
-    # Check if current directory is git working tree
-    ! git rev-parse --is-inside-work-tree &> /dev/null && return
     # Check if the current directory is ".git"
-    [[ $(git rev-parse --is-inside-git-dir 2> /dev/null) == 'true' ]] && return
+    [[ $(git rev-parse --is-inside-git-dir 2> /dev/null) != 'true' ]] && return
     # Branch name
     local branch=$(git symbolic-ref --quiet --short HEAD 2> /dev/null)
     local brcom=$(git rev-parse --short HEAD 2> /dev/null)
@@ -205,7 +203,7 @@ _prompt_virtualenv() {
     fi
 }
 
-PS1="\$(_prompt_uid_color)\u\[$reset\]"
+PS1="\n\$(_prompt_uid_color)\u\[$reset\]"
 [ -n "$SSH_TTY" ] && PS1+="\[$blue\]@\[$bold\]\[$purple\]\h\[$reset\]"
 PS1+="\[$blue\] in "
 PS1+="\[$green\]\w"
